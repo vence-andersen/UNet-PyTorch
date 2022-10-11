@@ -13,6 +13,7 @@ def double_conv(in_channel, out_channel, kernel_size=3):
     )
     return conv
 
+
 def crop_img(tensor, target_tensor):
     target_size = target_tensor.size()[2]
     tensor_size = tensor.size()[2]
@@ -26,7 +27,7 @@ class UNet(nn.Module):
         super(UNet, self).__init__()
 
         self.max_pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.down_conv_1 = double_conv(1,64)
+        self.down_conv_1 = double_conv(3,64)
         self.down_conv_2 = double_conv(64,128)
         self.down_conv_3 = double_conv(128,256)
         self.down_conv_4 = double_conv(256,512)
@@ -60,10 +61,11 @@ class UNet(nn.Module):
             stride=2)
         self.up_conv_4 = double_conv(128, 64)
 
-        self.out_conv = nn.Conv2d(in_channels=64, out_channels=2, kernel_size=1)
+        self.out_conv = nn.Conv2d(in_channels=64, out_channels=1, kernel_size=1)
 
     def forward(self, image):
         # encoder
+        print(image.size())
         x1 = self.down_conv_1(image)
         x2 = self.max_pool2(x1)
         x3 = self.down_conv_2(x2)
@@ -77,6 +79,7 @@ class UNet(nn.Module):
         # decoder
         x = self.up_trans_1(x9)
         y = crop_img(x7, x)
+        print(x.size(), y.size())
         x = self.up_conv_1(torch.cat([x,y], 1))
 
         x = self.up_trans_2(x)
@@ -92,13 +95,10 @@ class UNet(nn.Module):
         x = self.up_conv_4(torch.cat([x,y], 1))
 
         x = self.out_conv(x)
-        print(x.size())
         return x
         
-    
 
 if __name__ == "__main__":
     x = torch.rand((1,1,572,572))
-    # print("init", x.shape)
     model = UNet()
-    print(model(x))
+    model(x)
