@@ -7,7 +7,7 @@ from albumentations.pytorch import ToTensorV2
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
-# from unet import UNet
+from unet import UNet, crop_img
 from unet_aladin import UNET
 from utils import (
     load_checkpoint,
@@ -20,8 +20,8 @@ from utils import (
 # Hyperparameters
 lr = 1e-4
 device = "cuda" if torch.cuda.is_available() else "cpu"
-Batch_size = 4
-epochs = 3
+Batch_size = 8
+epochs = 17
 num_workers = 2
 image_height = 572
 image_width = 572
@@ -31,6 +31,7 @@ train_image_dir = "data/train_images/"
 train_mask_dir = "data/train_mask/"
 val_image_dir = "data/val_images/"
 val_mask_dir = "data/val_mask/"
+
 
 def train_fn(loader, model, optimiser, loss_fn, scaler):
     loop = tqdm(loader)
@@ -42,6 +43,7 @@ def train_fn(loader, model, optimiser, loss_fn, scaler):
         with torch.cuda.amp.autocast():
             predictions = model(data)
             targets = targets.float().unsqueeze(1).to(device=device)
+            targets = crop_img(targets, predictions)
             loss = loss_fn(predictions, targets)
 
         # backward
@@ -82,7 +84,8 @@ def main():
         ],
     )
 
-    model = UNET(in_channels=3, out_channels=1).to(device)
+    # model = UNET(in_channels=3, out_channels=1).to(device)
+    model = UNet().to(device=device)
     loss_fn = nn.BCEWithLogitsLoss()
     optimiser = optim.Adam(model.parameters(), lr=lr)
 

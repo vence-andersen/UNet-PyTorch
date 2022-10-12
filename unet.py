@@ -1,7 +1,6 @@
-from re import M
-from turtle import forward
 import torch
 import  torch.nn as nn
+from torchsummary import summary
 
 #Predefined func
 def double_conv(in_channel, out_channel, kernel_size=3):
@@ -65,7 +64,6 @@ class UNet(nn.Module):
 
     def forward(self, image):
         # encoder
-        print(image.size())
         x1 = self.down_conv_1(image)
         x2 = self.max_pool2(x1)
         x3 = self.down_conv_2(x2)
@@ -79,7 +77,6 @@ class UNet(nn.Module):
         # decoder
         x = self.up_trans_1(x9)
         y = crop_img(x7, x)
-        print(x.size(), y.size())
         x = self.up_conv_1(torch.cat([x,y], 1))
 
         x = self.up_trans_2(x)
@@ -99,6 +96,7 @@ class UNet(nn.Module):
         
 
 if __name__ == "__main__":
-    x = torch.rand((1,1,572,572))
+    # x = torch.rand((1,1,572,572))
     model = UNet()
-    model(x)
+    # model(x)
+    summary(model, (3,572,572))

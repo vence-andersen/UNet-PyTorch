@@ -4,6 +4,7 @@ import torch
 import torchvision
 from dataset import VehicleRegistrationDataset
 from torch.utils.data import DataLoader
+from unet import crop_img
 
 def save_checkpoint(state, filename="mycheckpoint.pth.tar"):
     print("Saving Checkpoint")
@@ -62,6 +63,7 @@ def check_accuracy(loader, model, device="cuda"):
             y = y.to(device).unsqueeze(1)
             preds = torch.sigmoid(model(x))
             preds = (preds > 0.5).float()
+            y = crop_img(y, preds)
             num_correct += (preds == y).sum()
             num_pixels += torch.numel(preds)
             dice_score += (2 * (preds*y).sum()) / ((preds+y).sum()) + 1e-8

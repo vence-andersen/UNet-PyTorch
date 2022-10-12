@@ -133,3 +133,5 @@ dmypy.json
 saved_images/
 unet_aladin.py
 *.pth.tar
+data/
+dataew/
