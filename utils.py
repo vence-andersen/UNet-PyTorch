@@ -4,9 +4,30 @@ from dataset import ImageDataset
 from torch.utils.data import DataLoader
 from unet import crop_img
 
-def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
-    print("Saving checkpoint")
-    torch.save(state, filename)
+class SaveBestModel: #https://debuggercafe.com/saving-and-loading-the-best-model-in-pytorch/
+    """
+    Class to save the best model while training. If the current epoch's 
+    validation loss is less than the previous least less, then save the
+    model state.
+    """
+    def __init__(
+        self, best_dice_score=float(0)
+    ):
+        self.best_dice_score = best_dice_score
+        
+    def __call__(
+        self, current_dice_score, 
+        epoch, model, optimizer
+    ):
+        if current_dice_score > self.best_dice_score:
+            self.best_dice_score = current_dice_score
+            print(f"\nBest dice score: {self.best_dice_score}")
+            print(f"\nSaving best model for epoch: {epoch+1}\n")
+            torch.save({
+                'epoch': epoch+1,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                }, 'checkpoint/best_model.pth')
 
 def load_checkpoint(checkpoint, model):
     print("Loading checkpoint")
@@ -64,8 +85,8 @@ def check_accuracy(loader, model, device="cuda"):
             x = x.to(device)
             y = y.to(device).unsqueeze(1)
             preds = model(x)
-            y = crop_img(y, preds)
-            preds = torch.sigmoid(preds)
+            y = crop_img(y, preds).to(device)
+            preds = torch.sigmoid(preds).to(device)
             preds = (preds > 0.5).float()
             num_correct += (preds == y).sum()
             num_pixels += torch.numel(preds)
@@ -76,8 +97,10 @@ def check_accuracy(loader, model, device="cuda"):
     print(
         f"Got {num_correct}/{num_pixels} with acc of {num_correct/num_pixels*100:.2f}"
     )
-    print(f"Dice score: {dice_score/len(loader)}")
+    dice_score  = dice_score/len(loader)
+    print(f"Dice score: {dice_score}")
     model.train()
+    return dice_score
 
 def save_predictions_as_images(
     loader, model, folder="saved_images/", device="cuda"

@@ -7,17 +7,17 @@ import torch.optim as optim
 from unet import UNet, crop_img
 from utils import (
     load_checkpoint,
-    save_checkpoint,
     get_loaders,
     check_accuracy,
-    save_predictions_as_images
+    save_predictions_as_images,
+    SaveBestModel
 )
 
 # Hyperparameters
 lr = 1e-4
 device = "cuda" if torch.cuda.is_available() else "cpu"
 Batch_size = 8
-epochs = 200
+epochs = 50
 num_workers = 8
 image_height = 572
 image_width = 572
@@ -39,7 +39,7 @@ def train_fn(loader, model, optimiser, loss_fn, scaler):
         with torch.cuda.amp.autocast():
             predictions = model(data)
             targets = targets.float().unsqueeze(1).to(device=device)
-            targets = crop_img(targets, predictions)
+            targets = crop_img(targets, predictions).to(device)
             loss = loss_fn(predictions, targets)
 
         # backward
@@ -83,6 +83,7 @@ def main():
     model = UNet().to(device=device)
     loss_fn = nn.BCEWithLogitsLoss()
     optimiser = optim.Adam(model.parameters(), lr=lr)
+    save_best_model = SaveBestModel()
 
     train_loader, val_loader = get_loaders(
         train_image_dir, train_mask_dir,
@@ -102,14 +103,16 @@ def main():
         train_fn(train_loader, model, optimiser, loss_fn, scaler)
 
         # save_model
-        checkpoint = {
-            "state_dict" : model.state_dict(),
-            "optimiser" : optimiser.state_dict()
-        }
-        save_checkpoint(checkpoint)
+        # checkpoint = {
+        #     "state_dict" : model.state_dict(),
+        #     "optimiser" : optimiser.state_dict()
+        # }
+        # save_checkpoint(checkpoint)
 
         # check_accuracy
-        check_accuracy(val_loader, model, device=device)
+        dice_score = check_accuracy(val_loader, model, device=device)
+
+        save_best_model(dice_score, epoch, model, optimiser)
 
         #saving output
         save_predictions_as_images(val_loader, model, folder="saved_images/", device="cuda")
